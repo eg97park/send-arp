@@ -1,4 +1,4 @@
-LDLIBS=-lpcap
+LDLIBS=-lpcap -g
 
 all: send-arp
 
