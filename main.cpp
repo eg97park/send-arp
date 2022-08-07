@@ -2,10 +2,8 @@
 #include <pcap.h>
 #include "ethhdr.h"
 #include "arphdr.h"
-#include <iostream>
 #include <string>
 #include <fstream>
-#include <memory>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -150,7 +148,7 @@ int main(int argc, char* argv[]) {
 	EthArpPacket packet;
 	std::string targetMac = GetTargetMac(dev, myMac, argv[2]);
 	if (targetMac == ""){
-		fprintf(stderr, "couldn't get target MAC address\n", dev, errbuf);
+		fprintf(stderr, "couldn't get target MAC address\n");
 		return -1;
 	}
 
@@ -161,7 +159,7 @@ int main(int argc, char* argv[]) {
 	packet.arp_.pro_ = htons(EthHdr::Ip4);
 	packet.arp_.hln_ = Mac::SIZE;
 	packet.arp_.pln_ = Ip::SIZE;
-	packet.arp_.op_ = htons(ArpHdr::Reply);
+	packet.arp_.op_ = htons(ArpHdr::Reply);		// gen ARP rep packet.
 	packet.arp_.smac_ = Mac(myMac);				// My MAC
 	packet.arp_.sip_ = htonl(Ip(argv[3]));		// GW IP
 	packet.arp_.tmac_ = Mac(targetMac);			// Target MAC
