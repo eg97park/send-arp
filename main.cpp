@@ -5,15 +5,9 @@
 #include <string>
 #include <fstream>
 
-#include <stdio.h>
-#include <stdlib.h>
-
-#include <sys/time.h>
-#include <sys/types.h>
 #include <unistd.h>
-#include <string.h>
-#include <fcntl.h>
 #include <cstring>
+#include <cstdlib>
 
 #pragma pack(push, 1)
 struct EthArpPacket final {
@@ -67,6 +61,7 @@ std::string GetMyMac(const std::string dev_){
  * 
  * @details	Send ARP req packet to target, get ARP rep packet,
  * 			and get target MAC address from ARP rep packet.
+ * 			@pcap_setnonblock used.
  */
 std::string GetMac(const char* dev_, const std::string myMac_, const std::string IP_){
 	char errbuf[PCAP_ERRBUF_SIZE];
@@ -78,7 +73,7 @@ std::string GetMac(const char* dev_, const std::string myMac_, const std::string
 		return "";
 	}
 
-	// normal ARP req packet.
+	// make  normal ARP req packet.
 	EthArpPacket packetArpReq;
 
 	// broadcast
@@ -94,7 +89,10 @@ std::string GetMac(const char* dev_, const std::string myMac_, const std::string
 
 	// fake source ip to hide my origin ip.
 	packetArpReq.arp_.smac_ = Mac(myMac_);
-	//packetArpReq.arp_.sip_ = htonl(Ip("0.0.0.0")); // -> ARP Probe??
+
+	// custom ip.
+	// 0.0.0.0 -> ARP PROBE??
+	// tip -> arp_rep's dmac == broadcast??
 	packetArpReq.arp_.sip_ = htonl(Ip("1.1.1.1"));
 
 	packetArpReq.arp_.tmac_ = Mac("00:00:00:00:00:00");
@@ -103,17 +101,8 @@ std::string GetMac(const char* dev_, const std::string myMac_, const std::string
 	int res = 0;
 	struct pcap_pkthdr* header;
 
-	// async
-	int rs, rb;
+	// set nonblock mode.
 	pcap_setnonblock(handle, 1, errbuf);
-	int fd = pcap_get_selectable_fd(handle);
-	if (fd < 0){
-		fprintf(stderr, "pcap_get_selectable_fd return %d error=%s\n", res, pcap_geterr(handle));
-		return "";
-	}
-
-	fd_set readfds;
-	FD_ZERO(&readfds);
 	do{
 		sleep(0);
 
@@ -134,25 +123,24 @@ std::string GetMac(const char* dev_, const std::string myMac_, const std::string
 		}
 
 		if (res == 0){
-			// no captured packets.
+			// no captured packet.
 			continue;
 		}
 
 		EthArpPacket* ethPacket = (EthArpPacket*)recvPacket;
 		if (ethPacket->eth_.type() != EthHdr::Arp){
-			//printf("ethPacket->eth_.type() = %04x\n", ethPacket->eth_.type());
+			// not arp packet.
 			continue;
 		}
 
 		if (strcasecmp(std::string(ethPacket->eth_.dmac_).c_str(), myMac_.c_str()) != 0){
-			printf("ethPacket->eth_.dmac_ = %s\n", std::string(ethPacket->eth_.dmac_).c_str());
+			// get only packet sent to me.
 			continue;
 		}
-		printf("@");
-		printf("%s\n", std::string(ethPacket->arp_.smac_).c_str());
 
-		// get target MAC address from ARP rep packet.
 		pcap_close(handle);
+
+		// return target MAC address from ARP rep packet.
 		return std::string(ethPacket->arp_.smac_);
 	} while (true);
 }
