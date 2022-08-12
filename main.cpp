@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <cstring>
 
 #pragma pack(push, 1)
 struct EthArpPacket final {
@@ -143,7 +144,7 @@ std::string GetMac(const char* dev_, const std::string myMac_, const std::string
 			continue;
 		}
 
-		if (std::string(ethPacket->eth_.dmac_).compare(myMac_) != 0){
+		if (strcasecmp(std::string(ethPacket->eth_.dmac_).c_str(), myMac_.c_str()) != 0){
 			printf("ethPacket->eth_.dmac_ = %s\n", std::string(ethPacket->eth_.dmac_).c_str());
 			continue;
 		}
