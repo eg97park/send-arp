@@ -94,7 +94,7 @@ std::string GetMac(const char* dev_, const std::string myMac_, const std::string
 	// fake source ip to hide my origin ip.
 	packetArpReq.arp_.smac_ = Mac(myMac_);
 	//packetArpReq.arp_.sip_ = htonl(Ip("0.0.0.0")); // -> ARP Probe??
-	packetArpReq.arp_.sip_ = htonl(Ip(IP_));
+	packetArpReq.arp_.sip_ = htonl(Ip("1.1.1.1"));
 
 	packetArpReq.arp_.tmac_ = Mac("00:00:00:00:00:00");
 	packetArpReq.arp_.tip_ = htonl(Ip(IP_));
@@ -115,12 +115,6 @@ std::string GetMac(const char* dev_, const std::string myMac_, const std::string
 	FD_ZERO(&readfds);
 	do{
 		sleep(0);
-		FD_SET(fd, &readfds);
-		rs = select(fd + 1, &readfds, NULL, NULL, NULL);
-		if (rs == -1){
-			fprintf(stderr, "select error\n");
-			return "";
-		}
 
 		// send normal ARP req packet.
 		res = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(&packetArpReq), sizeof(EthArpPacket));
@@ -131,30 +125,29 @@ std::string GetMac(const char* dev_, const std::string myMac_, const std::string
 
 
 		// receive packet.
-		/*
 		const u_char* recvPacket;
 		res = pcap_next_ex(handle, &header, &recvPacket);
 		if (res == PCAP_ERROR || res == PCAP_ERROR_BREAK) {
 			printf("pcap_next_ex return %d(%s)\n", res, pcap_geterr(handle));
 			return "";
-		}*/
+		}
 
-		uint8_t recvPacket_[128];
-        if(FD_ISSET(fd, &readfds)){
-			int cnt = 0;
-            while(( rb = read(fd, recvPacket_, 128)) > 0){
-                printf("read %d", rb);
-			}
-        }
+		if (res == 0){
+			// no captured packets.
+			continue;
+		}
 
-		EthArpPacket* ethPacket = (EthArpPacket*)recvPacket_;
-		if (ethPacket->eth_.type_ != EthHdr::Arp){
+		EthArpPacket* ethPacket = (EthArpPacket*)recvPacket;
+		if (ethPacket->eth_.type() != EthHdr::Arp){
+			//printf("ethPacket->eth_.type() = %04x\n", ethPacket->eth_.type());
 			continue;
 		}
 
 		if (std::string(ethPacket->eth_.dmac_).compare(myMac_) != 0){
+			printf("ethPacket->eth_.dmac_ = %s\n", std::string(ethPacket->eth_.dmac_).c_str());
 			continue;
 		}
+		printf("@");
 		printf("%s\n", std::string(ethPacket->arp_.smac_).c_str());
 
 		// get target MAC address from ARP rep packet.
