@@ -21,7 +21,7 @@ struct EthArpPacket final {
 constexpr size_t MAC_ADDR_STR_LEN = 18;
 
 void usage() {
-	printf("syntax: send-arp <interface> <sender ip> <target ip>\n");
+	printf("syntax: send-arp <interface> <sender ip> <target ip> [<sender ip 2> <target ip 2> ...]\n");
 	printf("sample: send-arp ens33\n");
 }
 
@@ -102,6 +102,7 @@ std::string GetMac(const char* dev_, const std::string myMac_, const std::string
 	struct pcap_pkthdr* header;
 
 	// set nonblock mode.
+	// send arp request until receive arp reply from sender.
 	pcap_setnonblock(handle, 1, errbuf);
 	do{
 		sleep(0);
@@ -112,7 +113,6 @@ std::string GetMac(const char* dev_, const std::string myMac_, const std::string
 			fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res, pcap_geterr(handle));
 			return "";
 		}
-
 
 		// receive packet.
 		const u_char* recvPacket;
@@ -147,7 +147,7 @@ std::string GetMac(const char* dev_, const std::string myMac_, const std::string
 
 
 int main(int argc, char* argv[]) {
-	if (argc != 4) {
+	if (argc < 4 || argc % 2 != 0) {
 		usage();
 		return -1;
 	}
