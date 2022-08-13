@@ -91,7 +91,7 @@ std::string GetMac(const char* dev_, const std::string myMac_, const std::string
 
 	// custom ip.
 	// 0.0.0.0 -> ARP PROBE??
-	// tip -> arp_rep's dmac == broadcast??
+	// tip -> arp_rep's dip == broadcast??
 	packetArpReq.arp_.sip_ = htonl(Ip("1.1.1.1"));
 
 	packetArpReq.arp_.tmac_ = Mac("00:00:00:00:00:00");
@@ -151,6 +151,7 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 
+	// count jobs.
 	const int jobNum = (argc - 2) / 2;
 	std::vector<std::string> senderIpList;
 	std::vector<std::string> targetIpList;
@@ -163,6 +164,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	// get my MAC address.
 	const std::string myMac = GetMyMac(argv[1]);
 	if (myMac == ""){
 		fprintf(stderr, "couldn't get my MAC address\n");
@@ -170,6 +172,7 @@ int main(int argc, char* argv[]) {
 	}
 	printf("@main: myMAC=%s\n", myMac.c_str());
 
+	// open NIC interface.
 	char* dev = argv[1];
 	char errbuf[PCAP_ERRBUF_SIZE];
 	pcap_t* handle = pcap_open_live(dev, 0, 0, 0, errbuf);
@@ -178,6 +181,7 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 	
+	// loop to do jobs.
 	for(int i = 0; i < jobNum; i++){
 		std::string senderMac = GetMac(dev, myMac, senderIpList.at(i));
 		if (senderMac == ""){
