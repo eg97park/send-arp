@@ -136,6 +136,12 @@ std::string GetMac(const char* dev_, const std::string myMac_, const std::string
 			// get only packet sent to me.
 			continue;
 		}
+		
+		if (strcasecmp(std::string(Ip(ntohl(ethPacket->arp_.sip_))).c_str(), IP_.c_str()) != 0){
+			// get only packet sent from target.
+			continue;
+		}
+		
 		std::string ret = std::string(ethPacket->arp_.smac_);
 		pcap_close(handle);
 
